@@ -13,11 +13,13 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  AlertTriangle,
   BookOpen,
   Crown,
+  Eye,
+  EyeOff,
   Loader2,
   LogIn,
+  LogOut,
   MessageSquare,
   Plus,
   ShieldCheck,
@@ -39,56 +41,177 @@ import {
   useIsCallerAdmin,
 } from "../hooks/useQueries";
 
+const ADMIN_EMAIL = "mdkamal515@gmail.com";
+const ADMIN_PASSWORD = "arman1234";
+const AUTH_KEY = "explore_bd_admin_auth";
+
 function formatDate(timestampNs: bigint): string {
   const ms = Number(timestampNs / 1_000_000n);
   return new Date(ms).toLocaleString();
 }
 
+function useAdminAuth() {
+  const [authed, setAuthed] = useState(() => {
+    return sessionStorage.getItem(AUTH_KEY) === "true";
+  });
+
+  const signIn = (email: string, password: string): boolean => {
+    if (
+      email.trim().toLowerCase() === ADMIN_EMAIL &&
+      password === ADMIN_PASSWORD
+    ) {
+      sessionStorage.setItem(AUTH_KEY, "true");
+      setAuthed(true);
+      return true;
+    }
+    return false;
+  };
+
+  const signOut = () => {
+    sessionStorage.removeItem(AUTH_KEY);
+    setAuthed(false);
+  };
+
+  return { authed, signIn, signOut };
+}
+
 export default function AdminPanel() {
-  const { login, identity, isLoggingIn } = useInternetIdentity();
+  const { authed, signIn, signOut } = useAdminAuth();
+  const { login, identity, clear: iiLogout } = useInternetIdentity();
   const { data: isAdmin, isLoading: adminLoading } = useIsCallerAdmin();
   const { data: hasAnyAdmin, isLoading: hasAnyAdminLoading } = useHasAnyAdmin();
   const claimAdmin = useClaimAdmin();
 
-  const handleClaimAdmin = async () => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPass, setShowPass] = useState(false);
+  const [loginError, setLoginError] = useState("");
+  const [logging, setLogging] = useState(false);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError("");
+    const ok = signIn(email, password);
+    if (!ok) {
+      setLoginError("ভুল ইমেইল বা পাসওয়ার্ড। আবার চেষ্টা করুন।");
+      return;
+    }
+    // Silently connect Internet Identity for backend calls
+    setLogging(true);
     try {
-      await claimAdmin.mutateAsync();
-      toast.success("You are now the admin! Welcome to your dashboard.");
+      await login();
     } catch {
-      toast.error("Failed to claim admin access. Please try again.");
+      // ignore — II optional
+    } finally {
+      setLogging(false);
     }
   };
 
-  if (!identity) {
+  const handleLogout = () => {
+    signOut();
+    try {
+      iiLogout?.();
+    } catch {}
+  };
+
+  const handleClaimAdmin = async () => {
+    try {
+      await claimAdmin.mutateAsync();
+      toast.success("আপনি এখন Admin! স্বাগতম।");
+    } catch {
+      toast.error("Admin claim করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।");
+    }
+  };
+
+  // Step 1: Email/password gate
+  if (!authed) {
     return (
       <div className="min-h-screen bg-secondary flex items-center justify-center">
         <div
-          className="bg-white rounded-xl shadow-card p-10 max-w-sm w-full text-center"
+          className="bg-white rounded-xl shadow-card p-10 max-w-sm w-full"
           data-ocid="admin.panel"
         >
-          <div className="w-14 h-14 bg-navy rounded-full flex items-center justify-center mx-auto mb-5">
-            <ShieldCheck size={28} className="text-gold" />
+          <div className="text-center mb-7">
+            <div className="w-14 h-14 bg-navy rounded-full flex items-center justify-center mx-auto mb-4">
+              <ShieldCheck size={28} className="text-gold" />
+            </div>
+            <h1 className="text-xl font-bold uppercase tracking-wider text-navy">
+              Admin Login
+            </h1>
+            <p className="text-muted-foreground text-sm mt-1">
+              Explore Bangladesh — Owner Panel
+            </p>
           </div>
-          <h1 className="text-xl font-bold uppercase tracking-wider text-navy mb-2">
-            Admin Panel
-          </h1>
-          <p className="text-muted-foreground text-sm mb-6">
-            Sign in with Internet Identity to access the admin dashboard.
-          </p>
-          <Button
-            data-ocid="admin.primary_button"
-            onClick={login}
-            disabled={isLoggingIn}
-            className="w-full bg-navy hover:bg-navy/90 text-white uppercase tracking-widest font-bold"
+
+          <form
+            onSubmit={handleLogin}
+            className="space-y-4"
+            data-ocid="admin.modal"
           >
-            {isLoggingIn ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <LogIn className="mr-2 h-4 w-4" />
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-navy">
+                Email
+              </Label>
+              <Input
+                data-ocid="admin.input"
+                type="email"
+                required
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="your@email.com"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-navy">
+                Password
+              </Label>
+              <div className="relative">
+                <Input
+                  data-ocid="admin.input"
+                  type={showPass ? "text" : "password"}
+                  required
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-navy"
+                  onClick={() => setShowPass((v) => !v)}
+                >
+                  {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+
+            {loginError && (
+              <p
+                className="text-xs text-destructive font-medium"
+                data-ocid="admin.error_state"
+              >
+                {loginError}
+              </p>
             )}
-            {isLoggingIn ? "Signing In..." : "Sign In"}
-          </Button>
-          <p className="text-xs text-muted-foreground mt-4">
+
+            <Button
+              type="submit"
+              data-ocid="admin.primary_button"
+              disabled={logging}
+              className="w-full bg-navy hover:bg-navy/90 text-white uppercase tracking-widest font-bold"
+            >
+              {logging ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <LogIn className="mr-2 h-4 w-4" />
+              )}
+              {logging ? "Signing In..." : "Sign In"}
+            </Button>
+          </form>
+
+          <p className="text-xs text-muted-foreground mt-5 text-center">
             <a href="/" className="text-gold hover:underline">
               ← Back to website
             </a>
@@ -98,6 +221,7 @@ export default function AdminPanel() {
     );
   }
 
+  // Step 2: After login — check if II identity ready for backend
   if (adminLoading || hasAnyAdminLoading) {
     return (
       <div
@@ -109,94 +233,66 @@ export default function AdminPanel() {
     );
   }
 
-  if (!isAdmin) {
-    // No admin has been claimed yet — let this user become the first admin
-    if (!hasAnyAdmin) {
-      return (
-        <div className="min-h-screen bg-secondary flex items-center justify-center">
-          <div
-            className="bg-white rounded-xl shadow-card p-10 max-w-md w-full text-center"
-            data-ocid="admin.panel"
-          >
-            <div className="w-16 h-16 bg-gradient-to-br from-gold to-amber-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-lg">
-              <Crown size={30} className="text-white" />
-            </div>
-            <h2 className="text-xl font-bold text-navy mb-2 uppercase tracking-wider">
-              Become the Admin
-            </h2>
-            <p className="text-muted-foreground text-sm mb-2">
-              No admin has been set up yet.
-            </p>
-            <p className="text-navy/80 text-sm font-medium mb-6">
-              Since you're the first, you can claim full admin access and take
-              ownership of this website.
-            </p>
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 text-left">
-              <p className="text-xs font-semibold text-amber-800 uppercase tracking-wider mb-1">
-                As Admin You Can:
-              </p>
-              <ul className="text-xs text-amber-700 space-y-1">
-                <li>✓ Publish blog posts &amp; destination stories</li>
-                <li>✓ View and manage tourist inquiries</li>
-                <li>✓ Add and manage guide team profiles</li>
-                <li>✓ Full control over the website content</li>
-              </ul>
-            </div>
-            <Button
-              data-ocid="admin.primary_button"
-              onClick={handleClaimAdmin}
-              disabled={claimAdmin.isPending}
-              className="w-full bg-gold hover:bg-gold/90 text-white uppercase tracking-widest font-bold text-sm py-3"
-            >
-              {claimAdmin.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Crown className="mr-2 h-4 w-4" />
-              )}
-              {claimAdmin.isPending
-                ? "Claiming Admin..."
-                : "Claim Admin Access"}
-            </Button>
-            {claimAdmin.isError && (
-              <p
-                className="text-xs text-destructive mt-3"
-                data-ocid="admin.error_state"
-              >
-                Failed to claim admin access. Please try again.
-              </p>
-            )}
-            <p className="text-xs text-muted-foreground mt-4">
-              <a href="/" className="text-gold hover:underline">
-                ← Back to website
-              </a>
-            </p>
-          </div>
-        </div>
-      );
-    }
-
-    // Admin already exists but this user is not admin
+  // Step 3: Claim admin if not yet claimed
+  if (identity && !isAdmin && !hasAnyAdmin) {
     return (
       <div className="min-h-screen bg-secondary flex items-center justify-center">
         <div
-          className="bg-white rounded-xl shadow-card p-10 max-w-sm w-full text-center"
-          data-ocid="admin.error_state"
+          className="bg-white rounded-xl shadow-card p-10 max-w-md w-full text-center"
+          data-ocid="admin.panel"
         >
-          <AlertTriangle size={40} className="text-destructive mx-auto mb-4" />
-          <h2 className="text-lg font-bold text-navy mb-2">Access Denied</h2>
-          <p className="text-muted-foreground text-sm mb-4">
-            You do not have admin permissions.
+          <div className="w-16 h-16 bg-gradient-to-br from-gold to-amber-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-lg">
+            <Crown size={30} className="text-white" />
+          </div>
+          <h2 className="text-xl font-bold text-navy mb-2 uppercase tracking-wider">
+            Claim Admin Access
+          </h2>
+          <p className="text-muted-foreground text-sm mb-6">
+            Click below to become the sole owner and admin of this website.
           </p>
-          <a href="/">
-            <Button variant="outline" className="border-navy text-navy">
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 text-left">
+            <p className="text-xs font-semibold text-amber-800 uppercase tracking-wider mb-1">
+              As Admin You Can:
+            </p>
+            <ul className="text-xs text-amber-700 space-y-1">
+              <li>✓ Publish blog posts &amp; destination stories</li>
+              <li>✓ View and manage tourist inquiries</li>
+              <li>✓ Add and manage guide team profiles</li>
+              <li>✓ Full control over the website content</li>
+            </ul>
+          </div>
+          <Button
+            data-ocid="admin.primary_button"
+            onClick={handleClaimAdmin}
+            disabled={claimAdmin.isPending}
+            className="w-full bg-gold hover:bg-gold/90 text-white uppercase tracking-widest font-bold text-sm py-3"
+          >
+            {claimAdmin.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Crown className="mr-2 h-4 w-4" />
+            )}
+            {claimAdmin.isPending ? "Claiming..." : "Claim Admin Access"}
+          </Button>
+          {claimAdmin.isError && (
+            <p
+              className="text-xs text-destructive mt-3"
+              data-ocid="admin.error_state"
+            >
+              Failed to claim admin access. Please try again.
+            </p>
+          )}
+          <p className="text-xs text-muted-foreground mt-4">
+            <a href="/" className="text-gold hover:underline">
               ← Back to website
-            </Button>
-          </a>
+            </a>
+          </p>
         </div>
       </div>
     );
   }
 
+  // Step 4: Full Admin Dashboard
   return (
     <div className="min-h-screen bg-secondary">
       <header className="bg-navy shadow-card" data-ocid="admin.section">
@@ -209,7 +305,7 @@ export default function AdminPanel() {
           </div>
           <div className="flex items-center gap-3">
             <span className="text-white/60 text-xs hidden sm:block">
-              {identity?.getPrincipal().toString().slice(0, 12)}...
+              {ADMIN_EMAIL}
             </span>
             <a href="/">
               <Button
@@ -220,6 +316,14 @@ export default function AdminPanel() {
                 View Site
               </Button>
             </a>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleLogout}
+              className="border-white/40 text-white/70 hover:bg-white/10 text-xs uppercase tracking-wider"
+            >
+              <LogOut size={13} className="mr-1" /> Logout
+            </Button>
           </div>
         </div>
       </header>
@@ -306,7 +410,6 @@ function BlogPostsTab() {
 
   return (
     <div className="space-y-6">
-      {/* Create Post Form */}
       <div
         className="bg-white rounded-xl shadow-card p-6"
         data-ocid="blog.panel"
@@ -390,7 +493,6 @@ function BlogPostsTab() {
         </form>
       </div>
 
-      {/* Posts List */}
       <div className="bg-white rounded-xl shadow-card p-6">
         <h2 className="text-sm font-bold uppercase tracking-wider text-navy mb-4">
           Published Posts ({posts.length})
