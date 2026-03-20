@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   AlertTriangle,
   BookOpen,
+  Crown,
   Loader2,
   LogIn,
   MessageSquare,
@@ -29,10 +30,12 @@ import { ExternalBlob } from "../backend";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import {
   useAddGuideProfile,
+  useClaimAdmin,
   useCreateBlogPost,
   useDeleteBlogPost,
   useGetAllBlogPosts,
   useGetAllInquiries,
+  useHasAnyAdmin,
   useIsCallerAdmin,
 } from "../hooks/useQueries";
 
@@ -44,6 +47,17 @@ function formatDate(timestampNs: bigint): string {
 export default function AdminPanel() {
   const { login, identity, isLoggingIn } = useInternetIdentity();
   const { data: isAdmin, isLoading: adminLoading } = useIsCallerAdmin();
+  const { data: hasAnyAdmin, isLoading: hasAnyAdminLoading } = useHasAnyAdmin();
+  const claimAdmin = useClaimAdmin();
+
+  const handleClaimAdmin = async () => {
+    try {
+      await claimAdmin.mutateAsync();
+      toast.success("You are now the admin! Welcome to your dashboard.");
+    } catch {
+      toast.error("Failed to claim admin access. Please try again.");
+    }
+  };
 
   if (!identity) {
     return (
@@ -84,7 +98,7 @@ export default function AdminPanel() {
     );
   }
 
-  if (adminLoading) {
+  if (adminLoading || hasAnyAdminLoading) {
     return (
       <div
         className="min-h-screen flex items-center justify-center"
@@ -96,6 +110,72 @@ export default function AdminPanel() {
   }
 
   if (!isAdmin) {
+    // No admin has been claimed yet — let this user become the first admin
+    if (!hasAnyAdmin) {
+      return (
+        <div className="min-h-screen bg-secondary flex items-center justify-center">
+          <div
+            className="bg-white rounded-xl shadow-card p-10 max-w-md w-full text-center"
+            data-ocid="admin.panel"
+          >
+            <div className="w-16 h-16 bg-gradient-to-br from-gold to-amber-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-lg">
+              <Crown size={30} className="text-white" />
+            </div>
+            <h2 className="text-xl font-bold text-navy mb-2 uppercase tracking-wider">
+              Become the Admin
+            </h2>
+            <p className="text-muted-foreground text-sm mb-2">
+              No admin has been set up yet.
+            </p>
+            <p className="text-navy/80 text-sm font-medium mb-6">
+              Since you're the first, you can claim full admin access and take
+              ownership of this website.
+            </p>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 text-left">
+              <p className="text-xs font-semibold text-amber-800 uppercase tracking-wider mb-1">
+                As Admin You Can:
+              </p>
+              <ul className="text-xs text-amber-700 space-y-1">
+                <li>✓ Publish blog posts &amp; destination stories</li>
+                <li>✓ View and manage tourist inquiries</li>
+                <li>✓ Add and manage guide team profiles</li>
+                <li>✓ Full control over the website content</li>
+              </ul>
+            </div>
+            <Button
+              data-ocid="admin.primary_button"
+              onClick={handleClaimAdmin}
+              disabled={claimAdmin.isPending}
+              className="w-full bg-gold hover:bg-gold/90 text-white uppercase tracking-widest font-bold text-sm py-3"
+            >
+              {claimAdmin.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Crown className="mr-2 h-4 w-4" />
+              )}
+              {claimAdmin.isPending
+                ? "Claiming Admin..."
+                : "Claim Admin Access"}
+            </Button>
+            {claimAdmin.isError && (
+              <p
+                className="text-xs text-destructive mt-3"
+                data-ocid="admin.error_state"
+              >
+                Failed to claim admin access. Please try again.
+              </p>
+            )}
+            <p className="text-xs text-muted-foreground mt-4">
+              <a href="/" className="text-gold hover:underline">
+                ← Back to website
+              </a>
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    // Admin already exists but this user is not admin
     return (
       <div className="min-h-screen bg-secondary flex items-center justify-center">
         <div

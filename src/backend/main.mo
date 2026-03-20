@@ -122,6 +122,28 @@ actor {
     },
   ];
 
+  // Claim admin — only works ONCE when no admin has been assigned yet.
+  // Directly manipulates state to avoid trapping on unregistered users.
+  public shared ({ caller }) func claimAdmin() : async Bool {
+    if (caller.isAnonymous()) { return false };
+    // Direct map lookup — avoids trap for unregistered users
+    switch (accessControlState.userRoles.get(caller)) {
+      case (?#admin) { return true }; // already admin
+      case (_) {};
+    };
+    if (not accessControlState.adminAssigned) {
+      accessControlState.userRoles.add(caller, #admin);
+      accessControlState.adminAssigned := true;
+      return true;
+    };
+    return false;
+  };
+
+  // Check if any admin has been assigned yet
+  public query func hasAnyAdmin() : async Bool {
+    accessControlState.adminAssigned;
+  };
+
   // User Profile functions
   public query ({ caller }) func getCallerUserProfile() : async ?UserProfile {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
@@ -220,6 +242,6 @@ actor {
     if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
       Runtime.trap("Unauthorized: Only admins can delete blog posts");
     };
-    ignore blogPosts.remove(id);
+    blogPosts.remove(id);
   };
 };

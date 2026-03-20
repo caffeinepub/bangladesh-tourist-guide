@@ -62,6 +62,33 @@ export function useIsCallerAdmin() {
   });
 }
 
+export function useHasAnyAdmin() {
+  const { actor, isFetching } = useActor();
+  return useQuery({
+    queryKey: ["hasAnyAdmin"],
+    queryFn: async () => {
+      if (!actor) return true;
+      return (actor as any).hasAnyAdmin();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useClaimAdmin() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      if (!actor) throw new Error("Not connected");
+      return (actor as any).claimAdmin();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["isCallerAdmin"] });
+      qc.invalidateQueries({ queryKey: ["hasAnyAdmin"] });
+    },
+  });
+}
+
 export function useCreateBlogPost() {
   const { actor } = useActor();
   const qc = useQueryClient();
