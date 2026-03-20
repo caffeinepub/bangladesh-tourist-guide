@@ -1,0 +1,113 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: "GeneralSans";
+  src: url("/assets/fonts/GeneralSans-Variable.woff2") format("woff2");
+  font-weight: 200 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Satoshi";
+  src: url("/assets/fonts/Satoshi-Variable.woff2") format("woff2");
+  font-weight: 300 700;
+  font-display: swap;
+}
+
+@layer base {
+  :root {
+    --radius: 0.5rem;
+
+    /* Dark Navy #0B2436 → oklch(0.22 0.05 220) */
+    --navy: 0.22 0.05 220;
+    /* Overlay Navy #1F3A4A → oklch(0.30 0.05 220) */
+    --navy-overlay: 0.3 0.05 220;
+    /* Gold #C9A43B → oklch(0.72 0.12 80) */
+    --gold: 0.72 0.12 80;
+    /* WhatsApp green #25D366 → oklch(0.70 0.20 150) */
+    --whatsapp: 0.7 0.2 150;
+
+    --background: 1 0 0;
+    --foreground: 0.14 0.03 240;
+    --card: 1 0 0;
+    --card-foreground: 0.14 0.03 240;
+    --popover: 1 0 0;
+    --popover-foreground: 0.14 0.03 240;
+    --primary: 0.22 0.05 220;
+    --primary-foreground: 1 0 0;
+    --secondary: 0.96 0.01 220;
+    --secondary-foreground: 0.22 0.05 220;
+    --muted: 0.96 0.01 220;
+    --muted-foreground: 0.5 0.02 220;
+    --accent: 0.72 0.12 80;
+    --accent-foreground: 0.14 0.03 240;
+    --destructive: 0.577 0.245 27.325;
+    --destructive-foreground: 1 0 0;
+    --border: 0.91 0.01 220;
+    --input: 0.91 0.01 220;
+    --ring: 0.72 0.12 80;
+    --chart-1: 0.646 0.222 41.116;
+    --chart-2: 0.6 0.118 184.704;
+    --chart-3: 0.398 0.07 227.392;
+    --chart-4: 0.828 0.189 84.429;
+    --chart-5: 0.769 0.188 70.08;
+    --sidebar: 0.22 0.05 220;
+    --sidebar-foreground: 1 0 0;
+    --sidebar-primary: 0.72 0.12 80;
+    --sidebar-primary-foreground: 0.14 0.03 240;
+    --sidebar-accent: 0.3 0.05 220;
+    --sidebar-accent-foreground: 1 0 0;
+    --sidebar-border: 0.35 0.05 220;
+    --sidebar-ring: 0.72 0.12 80;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: "GeneralSans", "Plus Jakarta Sans", sans-serif;
+  }
+}
+
+@layer utilities {
+  .text-navy {
+    color: oklch(var(--navy));
+  }
+  .bg-navy {
+    background-color: oklch(var(--navy));
+  }
+  .bg-navy-overlay {
+    background-color: oklch(var(--navy-overlay) / 0.82);
+  }
+  .text-gold {
+    color: oklch(var(--gold));
+  }
+  .bg-gold {
+    background-color: oklch(var(--gold));
+  }
+  .border-gold {
+    border-color: oklch(var(--gold));
+  }
+  .bg-whatsapp {
+    background-color: oklch(var(--whatsapp));
+  }
+  .hover\:bg-whatsapp-dark:hover {
+    background-color: oklch(0.6 0.2 150);
+  }
+  .hover\:bg-gold-dark:hover {
+    background-color: oklch(0.62 0.12 80);
+  }
+  .section-heading {
+    @apply text-2xl font-bold uppercase tracking-wider text-navy;
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
