@@ -14,6 +14,68 @@ export function useGetAllPackages() {
   });
 }
 
+export function useCreatePackage() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      name: string;
+      description: string;
+      duration: string;
+      price: number;
+      destinations: string[];
+    }) => {
+      if (!actor) throw new Error("Not connected");
+      return (actor as any).createPackage(
+        data.name,
+        data.description,
+        data.duration,
+        BigInt(data.price),
+        data.destinations,
+      );
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["packages"] }),
+  });
+}
+
+export function useUpdatePackage() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      id: bigint;
+      name: string;
+      description: string;
+      duration: string;
+      price: number;
+      destinations: string[];
+    }) => {
+      if (!actor) throw new Error("Not connected");
+      return (actor as any).updatePackage(
+        data.id,
+        data.name,
+        data.description,
+        data.duration,
+        BigInt(data.price),
+        data.destinations,
+      );
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["packages"] }),
+  });
+}
+
+export function useDeletePackage() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: bigint) => {
+      if (!actor) throw new Error("Not connected");
+      return (actor as any).deletePackage(id);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["packages"] }),
+  });
+}
+
 export function useGetAllGuideProfiles() {
   const { actor, isFetching } = useActor();
   return useQuery({
@@ -47,45 +109,6 @@ export function useGetAllInquiries() {
       return actor.getAllInquiries();
     },
     enabled: !!actor && !isFetching,
-  });
-}
-
-export function useIsCallerAdmin() {
-  const { actor, isFetching } = useActor();
-  return useQuery({
-    queryKey: ["isCallerAdmin"],
-    queryFn: async () => {
-      if (!actor) return false;
-      return actor.isCallerAdmin();
-    },
-    enabled: !!actor && !isFetching,
-  });
-}
-
-export function useHasAnyAdmin() {
-  const { actor, isFetching } = useActor();
-  return useQuery({
-    queryKey: ["hasAnyAdmin"],
-    queryFn: async () => {
-      if (!actor) return true;
-      return (actor as any).hasAnyAdmin();
-    },
-    enabled: !!actor && !isFetching,
-  });
-}
-
-export function useClaimAdmin() {
-  const { actor } = useActor();
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async () => {
-      if (!actor) throw new Error("Not connected");
-      return (actor as any).claimAdmin();
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["isCallerAdmin"] });
-      qc.invalidateQueries({ queryKey: ["hasAnyAdmin"] });
-    },
   });
 }
 
@@ -161,6 +184,118 @@ export function useSubmitInquiry() {
         data.message,
       );
     },
+  });
+}
+
+// Ad Slot hooks
+export function useGetAllAdSlots() {
+  const { actor, isFetching } = useActor();
+  return useQuery({
+    queryKey: ["adSlots"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return (actor as any).getAllAdSlots();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useCreateAdSlot() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      title: string;
+      imageUrl: string;
+      linkUrl: string;
+      advertiserName: string;
+      pricePaid: number;
+      isActive: boolean;
+    }) => {
+      if (!actor) throw new Error("Not connected");
+      return (actor as any).createAdSlot(
+        data.title,
+        data.imageUrl,
+        data.linkUrl,
+        data.advertiserName,
+        BigInt(data.pricePaid),
+        data.isActive,
+      );
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["adSlots"] });
+      qc.invalidateQueries({ queryKey: ["siteStats"] });
+    },
+  });
+}
+
+export function useUpdateAdSlot() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      id: bigint;
+      title: string;
+      imageUrl: string;
+      linkUrl: string;
+      advertiserName: string;
+      pricePaid: number;
+      isActive: boolean;
+    }) => {
+      if (!actor) throw new Error("Not connected");
+      return (actor as any).updateAdSlot(
+        data.id,
+        data.title,
+        data.imageUrl,
+        data.linkUrl,
+        data.advertiserName,
+        BigInt(data.pricePaid),
+        data.isActive,
+      );
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["adSlots"] });
+      qc.invalidateQueries({ queryKey: ["siteStats"] });
+    },
+  });
+}
+
+export function useDeleteAdSlot() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: bigint) => {
+      if (!actor) throw new Error("Not connected");
+      return (actor as any).deleteAdSlot(id);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["adSlots"] });
+      qc.invalidateQueries({ queryKey: ["siteStats"] });
+    },
+  });
+}
+
+export function useRecordAdClick() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: bigint) => {
+      if (!actor) throw new Error("Not connected");
+      return (actor as any).recordAdClick(id);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["adSlots"] }),
+  });
+}
+
+export function useGetSiteStats() {
+  const { actor, isFetching } = useActor();
+  return useQuery({
+    queryKey: ["siteStats"],
+    queryFn: async () => {
+      if (!actor) return null;
+      return (actor as any).getSiteStats();
+    },
+    enabled: !!actor && !isFetching,
   });
 }
 

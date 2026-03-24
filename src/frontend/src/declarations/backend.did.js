@@ -25,6 +25,16 @@ export const UserRole = IDL.Variant({
   'user' : IDL.Null,
   'guest' : IDL.Null,
 });
+export const Time = IDL.Int;
+export const BlogPost = IDL.Record({
+  'id' : IDL.Nat,
+  'title' : IDL.Text,
+  'destination' : IDL.Text,
+  'content' : IDL.Text,
+  'publishedBy' : IDL.Principal,
+  'timestamp' : Time,
+  'image' : IDL.Opt(ExternalBlob),
+});
 export const GuideProfile = IDL.Record({
   'bio' : IDL.Text,
   'name' : IDL.Text,
@@ -35,9 +45,9 @@ export const TourType = IDL.Variant({
   'dhakaCity' : IDL.Null,
   'sundarbans' : IDL.Null,
   'coxBazar' : IDL.Null,
+  'bandarban' : IDL.Null,
   'sajekValley' : IDL.Null,
 });
-export const Time = IDL.Int;
 export const Inquiry = IDL.Record({
   'id' : IDL.Nat,
   'name' : IDL.Text,
@@ -95,6 +105,13 @@ export const idlService = IDL.Service({
       [],
     ),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
+  'createBlogPost' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Opt(ExternalBlob)],
+      [IDL.Nat],
+      [],
+    ),
+  'deleteBlogPost' : IDL.Func([IDL.Nat], [], []),
+  'getAllBlogPosts' : IDL.Func([], [IDL.Vec(BlogPost)], ['query']),
   'getAllGuideProfiles' : IDL.Func([], [IDL.Vec(GuideProfile)], ['query']),
   'getAllInquiries' : IDL.Func([], [IDL.Vec(Inquiry)], ['query']),
   'getAllPackages' : IDL.Func([], [IDL.Vec(Package)], ['query']),
@@ -134,6 +151,16 @@ export const idlFactory = ({ IDL }) => {
     'user' : IDL.Null,
     'guest' : IDL.Null,
   });
+  const Time = IDL.Int;
+  const BlogPost = IDL.Record({
+    'id' : IDL.Nat,
+    'title' : IDL.Text,
+    'destination' : IDL.Text,
+    'content' : IDL.Text,
+    'publishedBy' : IDL.Principal,
+    'timestamp' : Time,
+    'image' : IDL.Opt(ExternalBlob),
+  });
   const GuideProfile = IDL.Record({
     'bio' : IDL.Text,
     'name' : IDL.Text,
@@ -144,9 +171,9 @@ export const idlFactory = ({ IDL }) => {
     'dhakaCity' : IDL.Null,
     'sundarbans' : IDL.Null,
     'coxBazar' : IDL.Null,
+    'bandarban' : IDL.Null,
     'sajekValley' : IDL.Null,
   });
-  const Time = IDL.Int;
   const Inquiry = IDL.Record({
     'id' : IDL.Nat,
     'name' : IDL.Text,
@@ -204,6 +231,13 @@ export const idlFactory = ({ IDL }) => {
         [],
       ),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
+    'createBlogPost' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Opt(ExternalBlob)],
+        [IDL.Nat],
+        [],
+      ),
+    'deleteBlogPost' : IDL.Func([IDL.Nat], [], []),
+    'getAllBlogPosts' : IDL.Func([], [IDL.Vec(BlogPost)], ['query']),
     'getAllGuideProfiles' : IDL.Func([], [IDL.Vec(GuideProfile)], ['query']),
     'getAllInquiries' : IDL.Func([], [IDL.Vec(Inquiry)], ['query']),
     'getAllPackages' : IDL.Func([], [IDL.Vec(Package)], ['query']),

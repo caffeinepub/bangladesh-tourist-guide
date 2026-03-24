@@ -13,32 +13,44 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  BarChart3,
   BookOpen,
-  Crown,
+  DollarSign,
+  Edit2,
   Eye,
   EyeOff,
   Loader2,
   LogIn,
   LogOut,
+  Megaphone,
   MessageSquare,
+  Package,
   Plus,
   ShieldCheck,
   Trash2,
+  TrendingUp,
   UserPlus,
+  Users,
+  X,
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { ExternalBlob } from "../backend";
-import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import {
   useAddGuideProfile,
-  useClaimAdmin,
+  useCreateAdSlot,
   useCreateBlogPost,
+  useCreatePackage,
+  useDeleteAdSlot,
   useDeleteBlogPost,
+  useDeletePackage,
+  useGetAllAdSlots,
   useGetAllBlogPosts,
   useGetAllInquiries,
-  useHasAnyAdmin,
-  useIsCallerAdmin,
+  useGetAllPackages,
+  useGetSiteStats,
+  useUpdateAdSlot,
+  useUpdatePackage,
 } from "../hooks/useQueries";
 
 const ADMIN_EMAIL = "mdkamal515@gmail.com";
@@ -77,10 +89,6 @@ function useAdminAuth() {
 
 export default function AdminPanel() {
   const { authed, signIn, signOut } = useAdminAuth();
-  const { login, identity, clear: iiLogout } = useInternetIdentity();
-  const { data: isAdmin, isLoading: adminLoading } = useIsCallerAdmin();
-  const { data: hasAnyAdmin, isLoading: hasAnyAdminLoading } = useHasAnyAdmin();
-  const claimAdmin = useClaimAdmin();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -91,39 +99,18 @@ export default function AdminPanel() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError("");
+    setLogging(true);
     const ok = signIn(email, password);
+    setLogging(false);
     if (!ok) {
       setLoginError("ভুল ইমেইল বা পাসওয়ার্ড। আবার চেষ্টা করুন।");
-      return;
-    }
-    // Silently connect Internet Identity for backend calls
-    setLogging(true);
-    try {
-      await login();
-    } catch {
-      // ignore — II optional
-    } finally {
-      setLogging(false);
     }
   };
 
   const handleLogout = () => {
     signOut();
-    try {
-      iiLogout?.();
-    } catch {}
   };
 
-  const handleClaimAdmin = async () => {
-    try {
-      await claimAdmin.mutateAsync();
-      toast.success("আপনি এখন Admin! স্বাগতম।");
-    } catch {
-      toast.error("Admin claim করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।");
-    }
-  };
-
-  // Step 1: Email/password gate
   if (!authed) {
     return (
       <div className="min-h-screen bg-secondary flex items-center justify-center">
@@ -142,7 +129,6 @@ export default function AdminPanel() {
               Explore Bangladesh — Owner Panel
             </p>
           </div>
-
           <form
             onSubmit={handleLogin}
             className="space-y-4"
@@ -186,7 +172,6 @@ export default function AdminPanel() {
                 </button>
               </div>
             </div>
-
             {loginError && (
               <p
                 className="text-xs text-destructive font-medium"
@@ -195,7 +180,6 @@ export default function AdminPanel() {
                 {loginError}
               </p>
             )}
-
             <Button
               type="submit"
               data-ocid="admin.primary_button"
@@ -210,7 +194,6 @@ export default function AdminPanel() {
               {logging ? "Signing In..." : "Sign In"}
             </Button>
           </form>
-
           <p className="text-xs text-muted-foreground mt-5 text-center">
             <a href="/" className="text-gold hover:underline">
               ← Back to website
@@ -221,78 +204,6 @@ export default function AdminPanel() {
     );
   }
 
-  // Step 2: After login — check if II identity ready for backend
-  if (adminLoading || hasAnyAdminLoading) {
-    return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        data-ocid="admin.loading_state"
-      >
-        <Loader2 className="h-8 w-8 animate-spin text-navy" />
-      </div>
-    );
-  }
-
-  // Step 3: Claim admin if not yet claimed
-  if (identity && !isAdmin && !hasAnyAdmin) {
-    return (
-      <div className="min-h-screen bg-secondary flex items-center justify-center">
-        <div
-          className="bg-white rounded-xl shadow-card p-10 max-w-md w-full text-center"
-          data-ocid="admin.panel"
-        >
-          <div className="w-16 h-16 bg-gradient-to-br from-gold to-amber-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-lg">
-            <Crown size={30} className="text-white" />
-          </div>
-          <h2 className="text-xl font-bold text-navy mb-2 uppercase tracking-wider">
-            Claim Admin Access
-          </h2>
-          <p className="text-muted-foreground text-sm mb-6">
-            Click below to become the sole owner and admin of this website.
-          </p>
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 text-left">
-            <p className="text-xs font-semibold text-amber-800 uppercase tracking-wider mb-1">
-              As Admin You Can:
-            </p>
-            <ul className="text-xs text-amber-700 space-y-1">
-              <li>✓ Publish blog posts &amp; destination stories</li>
-              <li>✓ View and manage tourist inquiries</li>
-              <li>✓ Add and manage guide team profiles</li>
-              <li>✓ Full control over the website content</li>
-            </ul>
-          </div>
-          <Button
-            data-ocid="admin.primary_button"
-            onClick={handleClaimAdmin}
-            disabled={claimAdmin.isPending}
-            className="w-full bg-gold hover:bg-gold/90 text-white uppercase tracking-widest font-bold text-sm py-3"
-          >
-            {claimAdmin.isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Crown className="mr-2 h-4 w-4" />
-            )}
-            {claimAdmin.isPending ? "Claiming..." : "Claim Admin Access"}
-          </Button>
-          {claimAdmin.isError && (
-            <p
-              className="text-xs text-destructive mt-3"
-              data-ocid="admin.error_state"
-            >
-              Failed to claim admin access. Please try again.
-            </p>
-          )}
-          <p className="text-xs text-muted-foreground mt-4">
-            <a href="/" className="text-gold hover:underline">
-              ← Back to website
-            </a>
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  // Step 4: Full Admin Dashboard
   return (
     <div className="min-h-screen bg-secondary">
       <header className="bg-navy shadow-card" data-ocid="admin.section">
@@ -329,14 +240,35 @@ export default function AdminPanel() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-8">
-        <Tabs defaultValue="blog" data-ocid="admin.tab">
-          <TabsList className="mb-6 bg-white border border-border shadow-xs">
+        <Tabs defaultValue="overview" data-ocid="admin.tab">
+          <TabsList className="mb-6 bg-white border border-border shadow-xs flex-wrap h-auto gap-1 p-1">
+            <TabsTrigger
+              value="overview"
+              data-ocid="admin.tab"
+              className="flex items-center gap-2"
+            >
+              <BarChart3 size={15} /> Overview
+            </TabsTrigger>
             <TabsTrigger
               value="blog"
               data-ocid="admin.tab"
               className="flex items-center gap-2"
             >
               <BookOpen size={15} /> Blog Posts
+            </TabsTrigger>
+            <TabsTrigger
+              value="packages"
+              data-ocid="packages.tab"
+              className="flex items-center gap-2"
+            >
+              <Package size={15} /> Tour Packages
+            </TabsTrigger>
+            <TabsTrigger
+              value="ads"
+              data-ocid="admin.tab"
+              className="flex items-center gap-2"
+            >
+              <Megaphone size={15} /> Advertisements
             </TabsTrigger>
             <TabsTrigger
               value="inquiries"
@@ -354,8 +286,17 @@ export default function AdminPanel() {
             </TabsTrigger>
           </TabsList>
 
+          <TabsContent value="overview">
+            <OverviewTab />
+          </TabsContent>
           <TabsContent value="blog">
             <BlogPostsTab />
+          </TabsContent>
+          <TabsContent value="packages">
+            <PackagesTab />
+          </TabsContent>
+          <TabsContent value="ads">
+            <AdsTab />
           </TabsContent>
           <TabsContent value="inquiries">
             <InquiriesTab />
@@ -368,6 +309,832 @@ export default function AdminPanel() {
     </div>
   );
 }
+
+// ─── Overview Tab ─────────────────────────────────────────────────────────────
+
+function OverviewTab() {
+  const { data: stats, isLoading } = useGetSiteStats();
+
+  const cards = [
+    {
+      label: "Total Inquiries",
+      value: stats ? Number((stats as any).totalInquiries) : 0,
+      icon: MessageSquare,
+      color: "text-blue-600",
+      bg: "bg-blue-50",
+    },
+    {
+      label: "Blog Posts",
+      value: stats ? Number((stats as any).totalPosts) : 0,
+      icon: BookOpen,
+      color: "text-green-600",
+      bg: "bg-green-50",
+    },
+    {
+      label: "Tour Packages",
+      value: stats ? Number((stats as any).totalPackages) : 0,
+      icon: Package,
+      color: "text-purple-600",
+      bg: "bg-purple-50",
+    },
+    {
+      label: "Guides",
+      value: stats ? Number((stats as any).totalGuides) : 0,
+      icon: Users,
+      color: "text-orange-600",
+      bg: "bg-orange-50",
+    },
+    {
+      label: "Active Ads",
+      value: stats ? Number((stats as any).activeAds) : 0,
+      icon: Megaphone,
+      color: "text-pink-600",
+      bg: "bg-pink-50",
+    },
+    {
+      label: "Ad Revenue (USD)",
+      value: stats ? `$${Number((stats as any).totalAdRevenue)}` : "$0",
+      icon: DollarSign,
+      color: "text-emerald-600",
+      bg: "bg-emerald-50",
+    },
+  ];
+
+  return (
+    <div className="space-y-6" data-ocid="overview.panel">
+      <div className="bg-white rounded-xl shadow-card p-6">
+        <h2 className="text-sm font-bold uppercase tracking-wider text-navy mb-6 flex items-center gap-2">
+          <TrendingUp size={16} className="text-gold" /> Site Statistics
+          Overview
+        </h2>
+        {isLoading ? (
+          <div
+            className="flex justify-center py-12"
+            data-ocid="overview.loading_state"
+          >
+            <Loader2 className="h-8 w-8 animate-spin text-navy" />
+          </div>
+        ) : (
+          <div
+            className="grid grid-cols-2 sm:grid-cols-3 gap-4"
+            data-ocid="overview.stats"
+          >
+            {cards.map((card) => (
+              <div
+                key={card.label}
+                className={`rounded-xl p-5 ${card.bg} border border-border/50`}
+                data-ocid={`overview.stat.${card.label.toLowerCase().replace(/ /g, "_")}`}
+              >
+                <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center mb-3 shadow-sm">
+                  <card.icon size={20} className={card.color} />
+                </div>
+                <p className="text-2xl font-bold text-navy">{card.value}</p>
+                <p className="text-xs text-muted-foreground mt-1 font-medium">
+                  {card.label}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="bg-white rounded-xl shadow-card p-6">
+        <h2 className="text-sm font-bold uppercase tracking-wider text-navy mb-4 flex items-center gap-2">
+          <DollarSign size={16} className="text-gold" /> Ad Revenue Guide
+        </h2>
+        <div className="space-y-3 text-sm text-muted-foreground">
+          <p>আপনার ওয়েবসাইটে বিজ্ঞাপন দিয়ে আয় করুন:</p>
+          <ul className="space-y-2 list-none">
+            <li className="flex items-start gap-2">
+              <span className="text-gold font-bold">১.</span>{" "}
+              <span>
+                স্থানীয় ব্যবসায়ীদের সাথে যোগাযোগ করুন (হোটেল, রেস্তোরাঁ, ট্যুর অপারেটর)
+              </span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-gold font-bold">২.</span>{" "}
+              <span>তাদের ব্যানার/ছবি নিন এবং একটি লিংক সংগ্রহ করুন</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-gold font-bold">৩.</span>{" "}
+              <span>"Advertisements" ট্যাবে গিয়ে বিজ্ঞাপন যোগ করুন</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-gold font-bold">৪.</span>{" "}
+              <span>বিজ্ঞাপন ওয়েবসাইটে প্রদর্শিত হবে এবং ক্লিক সংখ্যা ট্র্যাক হবে</span>
+            </li>
+          </ul>
+          <p className="text-xs mt-2 p-3 bg-gold/10 rounded-lg border border-gold/20 text-navy font-medium">
+            পরামর্শ: প্রতিটি বিজ্ঞাপনের জন্য মাসে ৫০-২০০ ডলার চার্জ করতে পারেন।
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Ads Tab ──────────────────────────────────────────────────────────────────
+
+type AdForm = {
+  title: string;
+  imageUrl: string;
+  linkUrl: string;
+  advertiserName: string;
+  pricePaid: string;
+  isActive: boolean;
+};
+
+const emptyAdForm: AdForm = {
+  title: "",
+  imageUrl: "",
+  linkUrl: "",
+  advertiserName: "",
+  pricePaid: "",
+  isActive: true,
+};
+
+type AdSlot = {
+  id: bigint;
+  title: string;
+  imageUrl: string;
+  linkUrl: string;
+  advertiserName: string;
+  pricePaid: bigint;
+  isActive: boolean;
+  clickCount: bigint;
+  createdAt: bigint;
+};
+
+function AdsTab() {
+  const { data: rawAds = [], isLoading } = useGetAllAdSlots();
+  const ads = rawAds as unknown as AdSlot[];
+  const createAd = useCreateAdSlot();
+  const updateAd = useUpdateAdSlot();
+  const deleteAd = useDeleteAdSlot();
+
+  const [form, setForm] = useState<AdForm>(emptyAdForm);
+  const [editingId, setEditingId] = useState<bigint | null>(null);
+  const isEditing = editingId !== null;
+
+  const handleEdit = (ad: AdSlot) => {
+    setEditingId(ad.id);
+    setForm({
+      title: ad.title,
+      imageUrl: ad.imageUrl,
+      linkUrl: ad.linkUrl,
+      advertiserName: ad.advertiserName,
+      pricePaid: String(Number(ad.pricePaid)),
+      isActive: ad.isActive,
+    });
+  };
+
+  const handleCancel = () => {
+    setEditingId(null);
+    setForm(emptyAdForm);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.title || !form.advertiserName) {
+      toast.error("Please fill in all required fields.");
+      return;
+    }
+    const price = Number(form.pricePaid) || 0;
+    try {
+      if (isEditing && editingId !== null) {
+        await updateAd.mutateAsync({
+          id: editingId,
+          ...form,
+          pricePaid: price,
+        });
+        toast.success("Advertisement updated!");
+        setEditingId(null);
+      } else {
+        await createAd.mutateAsync({ ...form, pricePaid: price });
+        toast.success("Advertisement added!");
+      }
+      setForm(emptyAdForm);
+    } catch {
+      toast.error("Failed to save advertisement.");
+    }
+  };
+
+  const handleDelete = async (id: bigint) => {
+    try {
+      await deleteAd.mutateAsync(id);
+      toast.success("Advertisement removed.");
+      if (editingId === id) handleCancel();
+    } catch {
+      toast.error("Failed to delete advertisement.");
+    }
+  };
+
+  const isMutating = createAd.isPending || updateAd.isPending;
+
+  return (
+    <div className="space-y-6">
+      <div
+        className="bg-white rounded-xl shadow-card p-6"
+        data-ocid="ads.panel"
+      >
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-sm font-bold uppercase tracking-wider text-navy flex items-center gap-2">
+            <Plus size={16} className="text-gold" />
+            {isEditing ? "Edit Advertisement" : "Add New Advertisement"}
+          </h2>
+          {isEditing && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleCancel}
+              className="text-muted-foreground hover:text-navy"
+            >
+              <X size={14} className="mr-1" /> Cancel
+            </Button>
+          )}
+        </div>
+
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-4"
+          data-ocid="ads.modal"
+        >
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-navy">
+                Ad Title *
+              </Label>
+              <Input
+                data-ocid="ads.input"
+                required
+                value={form.title}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, title: e.target.value }))
+                }
+                placeholder="Cox's Bazar Resort"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-navy">
+                Advertiser Name *
+              </Label>
+              <Input
+                required
+                value={form.advertiserName}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, advertiserName: e.target.value }))
+                }
+                placeholder="Sea Pearl Resort"
+              />
+            </div>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-navy">
+                Banner Image URL
+              </Label>
+              <Input
+                value={form.imageUrl}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, imageUrl: e.target.value }))
+                }
+                placeholder="https://example.com/banner.jpg"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-navy">
+                Link URL
+              </Label>
+              <Input
+                value={form.linkUrl}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, linkUrl: e.target.value }))
+                }
+                placeholder="https://advertiser-website.com"
+              />
+            </div>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-navy">
+                Price Paid (USD)
+              </Label>
+              <Input
+                type="number"
+                min="0"
+                value={form.pricePaid}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, pricePaid: e.target.value }))
+                }
+                placeholder="100"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-navy">
+                Status
+              </Label>
+              <div className="flex items-center gap-3 h-10">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setForm((p) => ({ ...p, isActive: !p.isActive }))
+                  }
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    form.isActive ? "bg-green-500" : "bg-gray-300"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      form.isActive ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+                <span className="text-sm font-medium">
+                  {form.isActive ? "Active" : "Inactive"}
+                </span>
+              </div>
+            </div>
+          </div>
+          <Button
+            type="submit"
+            data-ocid="ads.submit_button"
+            disabled={isMutating}
+            className="bg-gold hover:bg-gold/90 text-white uppercase tracking-widest font-bold text-xs"
+          >
+            {isMutating ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : null}
+            {isMutating
+              ? isEditing
+                ? "Updating..."
+                : "Adding..."
+              : isEditing
+                ? "Update Ad"
+                : "Add Advertisement"}
+          </Button>
+        </form>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-card p-6">
+        <h2 className="text-sm font-bold uppercase tracking-wider text-navy mb-4">
+          All Advertisements ({ads.length})
+        </h2>
+        {isLoading ? (
+          <div
+            className="flex justify-center py-8"
+            data-ocid="ads.loading_state"
+          >
+            <Loader2 className="h-6 w-6 animate-spin text-navy" />
+          </div>
+        ) : ads.length === 0 ? (
+          <p
+            className="text-muted-foreground text-sm text-center py-8"
+            data-ocid="ads.empty_state"
+          >
+            No advertisements yet. Add your first sponsor above.
+          </p>
+        ) : (
+          <div className="overflow-x-auto" data-ocid="ads.table">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs font-bold uppercase tracking-wider">
+                    Title
+                  </TableHead>
+                  <TableHead className="text-xs font-bold uppercase tracking-wider">
+                    Advertiser
+                  </TableHead>
+                  <TableHead className="text-xs font-bold uppercase tracking-wider">
+                    Price
+                  </TableHead>
+                  <TableHead className="text-xs font-bold uppercase tracking-wider">
+                    Clicks
+                  </TableHead>
+                  <TableHead className="text-xs font-bold uppercase tracking-wider">
+                    Status
+                  </TableHead>
+                  <TableHead className="text-xs font-bold uppercase tracking-wider text-right">
+                    Actions
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {ads.map((ad, i) => (
+                  <TableRow
+                    key={String(ad.id)}
+                    data-ocid={`ads.row.${i + 1}`}
+                    className={
+                      editingId === ad.id
+                        ? "bg-gold/5 border-l-2 border-l-gold"
+                        : ""
+                    }
+                  >
+                    <TableCell className="font-semibold text-sm text-navy">
+                      {ad.title}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {ad.advertiserName}
+                    </TableCell>
+                    <TableCell>
+                      <Badge className="bg-emerald-600 text-white text-xs font-bold">
+                        ${Number(ad.pricePaid)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-xs">
+                        {Number(ad.clickCount)} clicks
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        className={
+                          ad.isActive
+                            ? "bg-green-100 text-green-700 border-green-200"
+                            : "bg-gray-100 text-gray-500 border-gray-200"
+                        }
+                        variant="outline"
+                      >
+                        {ad.isActive ? "Active" : "Inactive"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEdit(ad)}
+                          className="border-navy text-navy hover:bg-navy hover:text-white"
+                        >
+                          <Edit2 size={13} />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDelete(ad.id)}
+                          disabled={deleteAd.isPending}
+                          className="border-destructive text-destructive hover:bg-destructive hover:text-white"
+                        >
+                          <Trash2 size={13} />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Packages Tab ─────────────────────────────────────────────────────────────
+
+type PackageForm = {
+  name: string;
+  description: string;
+  duration: string;
+  price: string;
+  destinations: string;
+};
+
+const emptyPackageForm: PackageForm = {
+  name: "",
+  description: "",
+  duration: "",
+  price: "",
+  destinations: "",
+};
+
+type PackageWithId = {
+  id: bigint;
+  name: string;
+  description: string;
+  duration: string;
+  price: bigint;
+  destinations: string[];
+};
+
+function PackagesTab() {
+  const { data: rawPackages = [], isLoading } = useGetAllPackages();
+  const packages = rawPackages as unknown as PackageWithId[];
+  const createPackage = useCreatePackage();
+  const updatePackage = useUpdatePackage();
+  const deletePackage = useDeletePackage();
+
+  const [form, setForm] = useState<PackageForm>(emptyPackageForm);
+  const [editingId, setEditingId] = useState<bigint | null>(null);
+  const isEditing = editingId !== null;
+
+  const handleEdit = (pkg: PackageWithId) => {
+    setEditingId(pkg.id);
+    setForm({
+      name: pkg.name,
+      description: pkg.description,
+      duration: pkg.duration,
+      price: String(Number(pkg.price)),
+      destinations: pkg.destinations.join(", "),
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setForm(emptyPackageForm);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.name || !form.description || !form.duration || !form.price) {
+      toast.error("Please fill in all required fields.");
+      return;
+    }
+    const priceNum = Number(form.price);
+    if (Number.isNaN(priceNum) || priceNum < 0) {
+      toast.error("Price must be a valid positive number.");
+      return;
+    }
+    const destinations = form.destinations
+      .split(",")
+      .map((d) => d.trim())
+      .filter(Boolean);
+    try {
+      if (isEditing && editingId !== null) {
+        await updatePackage.mutateAsync({
+          id: editingId,
+          name: form.name,
+          description: form.description,
+          duration: form.duration,
+          price: priceNum,
+          destinations,
+        });
+        toast.success("Package updated!");
+        setEditingId(null);
+      } else {
+        await createPackage.mutateAsync({
+          name: form.name,
+          description: form.description,
+          duration: form.duration,
+          price: priceNum,
+          destinations,
+        });
+        toast.success("Package created!");
+      }
+      setForm(emptyPackageForm);
+    } catch {
+      toast.error(
+        isEditing ? "Failed to update package." : "Failed to create package.",
+      );
+    }
+  };
+
+  const handleDelete = async (id: bigint) => {
+    try {
+      await deletePackage.mutateAsync(id);
+      toast.success("Package deleted.");
+      if (editingId === id) handleCancelEdit();
+    } catch {
+      toast.error("Failed to delete package.");
+    }
+  };
+
+  const isMutating = createPackage.isPending || updatePackage.isPending;
+
+  return (
+    <div className="space-y-6">
+      <div
+        className="bg-white rounded-xl shadow-card p-6"
+        data-ocid="packages.panel"
+      >
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-sm font-bold uppercase tracking-wider text-navy flex items-center gap-2">
+            <Plus size={16} className="text-gold" />
+            {isEditing ? "Edit Package" : "Add New Tour Package"}
+          </h2>
+          {isEditing && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleCancelEdit}
+              className="text-muted-foreground hover:text-navy"
+              data-ocid="packages.cancel_button"
+            >
+              <X size={14} className="mr-1" /> Cancel Edit
+            </Button>
+          )}
+        </div>
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-4"
+          data-ocid="packages.modal"
+        >
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-navy">
+                Package Name *
+              </Label>
+              <Input
+                data-ocid="packages.input"
+                required
+                value={form.name}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, name: e.target.value }))
+                }
+                placeholder="Cox's Bazar Premium Tour"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-navy">
+                Duration *
+              </Label>
+              <Input
+                required
+                value={form.duration}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, duration: e.target.value }))
+                }
+                placeholder="5 Days / 4 Nights"
+              />
+            </div>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-navy">
+                Price (USD) *
+              </Label>
+              <Input
+                required
+                type="number"
+                min="0"
+                value={form.price}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, price: e.target.value }))
+                }
+                placeholder="299"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-navy">
+                Destinations (comma-separated)
+              </Label>
+              <Input
+                value={form.destinations}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, destinations: e.target.value }))
+                }
+                placeholder="Cox's Bazar, Saint Martin Island"
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold uppercase tracking-wider text-navy">
+              Description *
+            </Label>
+            <Textarea
+              data-ocid="packages.textarea"
+              required
+              rows={4}
+              value={form.description}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, description: e.target.value }))
+              }
+              placeholder="Describe what's included in this tour package..."
+            />
+          </div>
+          <Button
+            type="submit"
+            data-ocid="packages.submit_button"
+            disabled={isMutating}
+            className="bg-gold hover:bg-gold/90 text-white uppercase tracking-widest font-bold text-xs"
+          >
+            {isMutating ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : null}
+            {isMutating
+              ? isEditing
+                ? "Updating..."
+                : "Creating..."
+              : isEditing
+                ? "Update Package"
+                : "Create Package"}
+          </Button>
+        </form>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-card p-6">
+        <h2 className="text-sm font-bold uppercase tracking-wider text-navy mb-4">
+          All Tour Packages ({packages.length})
+        </h2>
+        {isLoading ? (
+          <div
+            className="flex justify-center py-8"
+            data-ocid="packages.loading_state"
+          >
+            <Loader2 className="h-6 w-6 animate-spin text-navy" />
+          </div>
+        ) : packages.length === 0 ? (
+          <p
+            className="text-muted-foreground text-sm text-center py-8"
+            data-ocid="packages.empty_state"
+          >
+            No packages yet.
+          </p>
+        ) : (
+          <div className="overflow-x-auto" data-ocid="packages.table">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs font-bold uppercase tracking-wider">
+                    Name
+                  </TableHead>
+                  <TableHead className="text-xs font-bold uppercase tracking-wider">
+                    Duration
+                  </TableHead>
+                  <TableHead className="text-xs font-bold uppercase tracking-wider">
+                    Price
+                  </TableHead>
+                  <TableHead className="text-xs font-bold uppercase tracking-wider">
+                    Destinations
+                  </TableHead>
+                  <TableHead className="text-xs font-bold uppercase tracking-wider">
+                    Description
+                  </TableHead>
+                  <TableHead className="text-xs font-bold uppercase tracking-wider text-right">
+                    Actions
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {packages.map((pkg, i) => (
+                  <TableRow
+                    key={String(pkg.id)}
+                    data-ocid={`packages.row.${i + 1}`}
+                    className={
+                      editingId === pkg.id
+                        ? "bg-gold/5 border-l-2 border-l-gold"
+                        : ""
+                    }
+                  >
+                    <TableCell className="font-semibold text-sm text-navy">
+                      {pkg.name}
+                    </TableCell>
+                    <TableCell className="text-sm">{pkg.duration}</TableCell>
+                    <TableCell>
+                      <Badge className="bg-navy text-white text-xs font-bold">
+                        ${Number(pkg.price)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {pkg.destinations.map((dest) => (
+                          <Badge
+                            key={dest}
+                            variant="outline"
+                            className="border-gold text-gold text-xs"
+                          >
+                            {dest}
+                          </Badge>
+                        ))}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">
+                      {pkg.description}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          data-ocid={`packages.edit_button.${i + 1}`}
+                          onClick={() => handleEdit(pkg)}
+                          className="border-navy text-navy hover:bg-navy hover:text-white"
+                        >
+                          <Edit2 size={13} />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          data-ocid={`packages.delete_button.${i + 1}`}
+                          onClick={() => handleDelete(pkg.id)}
+                          disabled={deletePackage.isPending}
+                          className="border-destructive text-destructive hover:bg-destructive hover:text-white"
+                        >
+                          <Trash2 size={13} />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Blog Posts Tab ───────────────────────────────────────────────────────────
 
 function BlogPostsTab() {
   const { data: posts = [], isLoading } = useGetAllBlogPosts();
@@ -492,7 +1259,6 @@ function BlogPostsTab() {
           </Button>
         </form>
       </div>
-
       <div className="bg-white rounded-xl shadow-card p-6">
         <h2 className="text-sm font-bold uppercase tracking-wider text-navy mb-4">
           Published Posts ({posts.length})
@@ -513,7 +1279,7 @@ function BlogPostsTab() {
           </p>
         ) : (
           <div className="space-y-3" data-ocid="blog.list">
-            {posts.map((post, i) => (
+            {posts.map((post: any, i: number) => (
               <div
                 key={String(post.id)}
                 className="flex items-start justify-between gap-4 p-4 border border-border rounded-lg"
@@ -557,9 +1323,10 @@ function BlogPostsTab() {
   );
 }
 
+// ─── Inquiries Tab ────────────────────────────────────────────────────────────
+
 function InquiriesTab() {
   const { data: inquiries = [], isLoading } = useGetAllInquiries();
-
   return (
     <div
       className="bg-white rounded-xl shadow-card p-6"
@@ -611,7 +1378,7 @@ function InquiriesTab() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {inquiries.map((inq, i) => (
+              {inquiries.map((inq: any, i: number) => (
                 <TableRow
                   key={String(inq.id)}
                   data-ocid={`inquiries.row.${i + 1}`}
@@ -645,6 +1412,8 @@ function InquiriesTab() {
     </div>
   );
 }
+
+// ─── Add Guide Tab ────────────────────────────────────────────────────────────
 
 function AddGuideTab() {
   const addGuide = useAddGuideProfile();

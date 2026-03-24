@@ -15,9 +15,11 @@ import {
   BadgeCheck,
   ChevronDown,
   Clock,
+  ExternalLink,
   Headphones,
   Mail,
   MapPin,
+  Megaphone,
   Menu,
   Phone,
   Settings,
@@ -33,7 +35,9 @@ import { SiFacebook, SiInstagram, SiWhatsapp, SiX } from "react-icons/si";
 import { toast } from "sonner";
 import {
   TourType,
+  useGetAllAdSlots,
   useGetAllBlogPosts,
+  useRecordAdClick,
   useSubmitInquiry,
 } from "../hooks/useQueries";
 
@@ -192,6 +196,9 @@ export default function BangladeshTourSite() {
 
   const submitInquiry = useSubmitInquiry();
   const { data: blogPosts = [] } = useGetAllBlogPosts();
+  const { data: adSlots = [] } = useGetAllAdSlots();
+  const recordAdClick = useRecordAdClick();
+  const activeAds = adSlots.filter((ad: any) => ad.isActive);
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 60);
@@ -779,6 +786,71 @@ export default function BangladeshTourSite() {
         </div>
       </section>
 
+      {/* OUR SPONSORS */}
+      {activeAds.length > 0 && (
+        <section className="py-16 bg-slate-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6">
+            <div className="text-center mb-10">
+              <span className="text-gold text-xs font-bold uppercase tracking-[0.3em]">
+                Partners & Advertisers
+              </span>
+              <h2 className="section-heading mt-2 text-3xl mb-2">
+                OUR SPONSORS
+              </h2>
+              <div className="w-16 h-1 bg-gold mx-auto rounded-full mt-3" />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {activeAds.map((ad: any, idx: number) => (
+                <motion.div
+                  key={String(ad.id)}
+                  initial={{ opacity: 0, y: 24 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: idx * 0.08 }}
+                  className="bg-white rounded-2xl shadow-md border border-border overflow-hidden flex flex-col"
+                  data-ocid={`sponsors.item.${idx + 1}`}
+                >
+                  {ad.imageUrl ? (
+                    <img
+                      src={ad.imageUrl}
+                      alt={ad.title}
+                      className="w-full h-40 object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-40 bg-navy/10 flex items-center justify-center">
+                      <Megaphone className="w-12 h-12 text-gold opacity-60" />
+                    </div>
+                  )}
+                  <div className="p-5 flex flex-col flex-1">
+                    <Badge className="self-start mb-2 bg-gold/20 text-gold border-gold/30 text-xs">
+                      {ad.advertiserName}
+                    </Badge>
+                    <h3 className="font-bold text-navy text-base mb-3 flex-1">
+                      {ad.title}
+                    </h3>
+                    <Button
+                      size="sm"
+                      className="bg-gold hover:bg-gold/90 text-white w-full mt-auto"
+                      data-ocid={`sponsors.button.${idx + 1}`}
+                      onClick={() => {
+                        recordAdClick.mutate(ad.id);
+                        window.open(
+                          ad.linkUrl,
+                          "_blank",
+                          "noopener,noreferrer",
+                        );
+                      }}
+                    >
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      Visit Sponsor
+                    </Button>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
       {/* BOOKING / CONTACT */}
       <section id="contact" className="py-20 bg-navy">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
@@ -808,14 +880,12 @@ export default function BangladeshTourSite() {
                   <span className="text-sm">+880 1876-244413</span>
                 </div>
                 <a
-                  href="mailto:explorebangladesh.tours@gmail.com"
+                  href="mailto:mdkamal515@gmail.com"
                   className="flex items-center gap-3 text-white/80 hover:text-gold transition-colors"
                   data-ocid="contact.link"
                 >
                   <Mail size={18} className="text-gold" />
-                  <span className="text-sm">
-                    explorebangladesh.tours@gmail.com
-                  </span>
+                  <span className="text-sm">mdkamal515@gmail.com</span>
                 </a>
                 <div className="flex items-center gap-3 text-white/80">
                   <MapPin size={18} className="text-gold" />
@@ -840,7 +910,7 @@ export default function BangladeshTourSite() {
                   </Button>
                 </a>
                 <a
-                  href="mailto:explorebangladesh.tours@gmail.com"
+                  href="mailto:mdkamal515@gmail.com"
                   data-ocid="contact.secondary_button"
                 >
                   <Button
@@ -1116,11 +1186,11 @@ export default function BangladeshTourSite() {
                 </li>
                 <li>
                   <a
-                    href="mailto:explorebangladesh.tours@gmail.com"
+                    href="mailto:mdkamal515@gmail.com"
                     className="flex items-start gap-2 text-white/60 hover:text-gold text-sm transition-colors"
                   >
                     <Mail size={14} className="text-gold mt-0.5 shrink-0" />
-                    explorebangladesh.tours@gmail.com
+                    mdkamal515@gmail.com
                   </a>
                 </li>
                 <li className="flex items-start gap-2 text-white/60 text-sm">

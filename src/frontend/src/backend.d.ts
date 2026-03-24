@@ -14,6 +14,15 @@ export class ExternalBlob {
     static fromBytes(blob: Uint8Array<ArrayBuffer>): ExternalBlob;
     withUploadProgress(onProgress: (percentage: number) => void): ExternalBlob;
 }
+export interface BlogPost {
+    id: bigint;
+    title: string;
+    destination: string;
+    content: string;
+    publishedBy: Principal;
+    timestamp: Time;
+    image?: ExternalBlob;
+}
 export type Time = bigint;
 export interface GuideProfile {
     bio: string;
@@ -38,15 +47,6 @@ export interface Inquiry {
     timestamp: Time;
     phone: string;
 }
-export interface BlogPost {
-    id: bigint;
-    title: string;
-    content: string;
-    destination: string;
-    image?: ExternalBlob;
-    timestamp: Time;
-    publishedBy: Principal;
-}
 export interface UserProfile {
     name: string;
     email: string;
@@ -56,8 +56,8 @@ export enum TourType {
     dhakaCity = "dhakaCity",
     sundarbans = "sundarbans",
     coxBazar = "coxBazar",
-    sajekValley = "sajekValley",
-    bandarban = "bandarban"
+    bandarban = "bandarban",
+    sajekValley = "sajekValley"
 }
 export enum UserRole {
     admin = "admin",
@@ -67,12 +67,12 @@ export enum UserRole {
 export interface backendInterface {
     addGuideProfile(name: string, role: string, bio: string, photo: ExternalBlob | null): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
+    createBlogPost(title: string, content: string, destination: string, image: ExternalBlob | null): Promise<bigint>;
+    deleteBlogPost(id: bigint): Promise<void>;
+    getAllBlogPosts(): Promise<Array<BlogPost>>;
     getAllGuideProfiles(): Promise<Array<GuideProfile>>;
     getAllInquiries(): Promise<Array<Inquiry>>;
     getAllPackages(): Promise<Array<Package>>;
-    getAllBlogPosts(): Promise<Array<BlogPost>>;
-    createBlogPost(title: string, content: string, destination: string, image: ExternalBlob | null): Promise<bigint>;
-    deleteBlogPost(id: bigint): Promise<void>;
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;

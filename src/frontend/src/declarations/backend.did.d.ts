@@ -10,6 +10,15 @@ import type { ActorMethod } from '@icp-sdk/core/agent';
 import type { IDL } from '@icp-sdk/core/candid';
 import type { Principal } from '@icp-sdk/core/principal';
 
+export interface BlogPost {
+  'id' : bigint,
+  'title' : string,
+  'destination' : string,
+  'content' : string,
+  'publishedBy' : Principal,
+  'timestamp' : Time,
+  'image' : [] | [ExternalBlob],
+}
 export type ExternalBlob = Uint8Array;
 export interface GuideProfile {
   'bio' : string,
@@ -38,6 +47,7 @@ export type Time = bigint;
 export type TourType = { 'dhakaCity' : null } |
   { 'sundarbans' : null } |
   { 'coxBazar' : null } |
+  { 'bandarban' : null } |
   { 'sajekValley' : null };
 export interface UserProfile {
   'name' : string,
@@ -80,6 +90,12 @@ export interface _SERVICE {
     undefined
   >,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
+  'createBlogPost' : ActorMethod<
+    [string, string, string, [] | [ExternalBlob]],
+    bigint
+  >,
+  'deleteBlogPost' : ActorMethod<[bigint], undefined>,
+  'getAllBlogPosts' : ActorMethod<[], Array<BlogPost>>,
   'getAllGuideProfiles' : ActorMethod<[], Array<GuideProfile>>,
   'getAllInquiries' : ActorMethod<[], Array<Inquiry>>,
   'getAllPackages' : ActorMethod<[], Array<Package>>,
