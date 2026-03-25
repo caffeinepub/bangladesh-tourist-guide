@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   BarChart3,
   BookOpen,
+  ClipboardCheck,
   DollarSign,
   Edit2,
   Eye,
@@ -38,17 +39,20 @@ import { toast } from "sonner";
 import { ExternalBlob } from "../backend";
 import {
   useAddGuideProfile,
+  useApproveAdRequest,
   useCreateAdSlot,
   useCreateBlogPost,
   useCreatePackage,
   useDeleteAdSlot,
   useDeleteBlogPost,
   useDeletePackage,
+  useGetAllAdRequests,
   useGetAllAdSlots,
   useGetAllBlogPosts,
   useGetAllInquiries,
   useGetAllPackages,
   useGetSiteStats,
+  useRejectAdRequest,
   useUpdateAdSlot,
   useUpdatePackage,
 } from "../hooks/useQueries";
@@ -284,6 +288,13 @@ export default function AdminPanel() {
             >
               <UserPlus size={15} /> Add Guide
             </TabsTrigger>
+            <TabsTrigger
+              value="adrequests"
+              data-ocid="admin.tab"
+              className="flex items-center gap-2"
+            >
+              <ClipboardCheck size={15} /> Ad Requests
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview">
@@ -303,6 +314,9 @@ export default function AdminPanel() {
           </TabsContent>
           <TabsContent value="guides">
             <AddGuideTab />
+          </TabsContent>
+          <TabsContent value="adrequests">
+            <AdRequestsTab />
           </TabsContent>
         </Tabs>
       </main>
@@ -1533,6 +1547,269 @@ function AddGuideTab() {
           </p>
         )}
       </form>
+    </div>
+  );
+}
+
+// ─── Ad Requests Tab ─────────────────────────────────────────────────────────
+
+function AdRequestsTab() {
+  const { data: allRequests = [], isLoading } = useGetAllAdRequests();
+  const approve = useApproveAdRequest();
+  const reject = useRejectAdRequest();
+  const [filter, setFilter] = useState<
+    "all" | "pending" | "approved" | "rejected"
+  >("all");
+  const [rejectingId, setRejectingId] = useState<bigint | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+
+  const pending = allRequests.filter((r: any) => "pending" in r.status);
+  const approved = allRequests.filter((r: any) => "approved" in r.status);
+  const rejected = allRequests.filter((r: any) => "rejected" in r.status);
+
+  const filtered =
+    filter === "pending"
+      ? pending
+      : filter === "approved"
+        ? approved
+        : filter === "rejected"
+          ? rejected
+          : allRequests;
+
+  const getStatusBadge = (status: any) => {
+    if ("pending" in status)
+      return (
+        <Badge className="bg-amber-100 text-amber-800 border-amber-200 text-xs">
+          Pending
+        </Badge>
+      );
+    if ("approved" in status)
+      return (
+        <Badge className="bg-green-100 text-green-800 border-green-200 text-xs">
+          Approved
+        </Badge>
+      );
+    if ("rejected" in status)
+      return (
+        <Badge className="bg-red-100 text-red-800 border-red-200 text-xs">
+          Rejected
+        </Badge>
+      );
+    return (
+      <Badge className="bg-gray-100 text-gray-600 border-gray-200 text-xs">
+        Expired
+      </Badge>
+    );
+  };
+
+  const handleApprove = async (id: bigint) => {
+    try {
+      await approve.mutateAsync(id);
+      toast.success("Ad request approved!");
+    } catch {
+      toast.error("Failed to approve.");
+    }
+  };
+
+  const handleReject = async (id: bigint) => {
+    if (!rejectReason.trim()) {
+      toast.error("Please provide a rejection reason.");
+      return;
+    }
+    try {
+      await reject.mutateAsync({ id, reason: rejectReason });
+      toast.success("Ad request rejected.");
+      setRejectingId(null);
+      setRejectReason("");
+    } catch {
+      toast.error("Failed to reject.");
+    }
+  };
+
+  return (
+    <div
+      className="bg-white rounded-xl shadow-card p-6"
+      data-ocid="adrequests.panel"
+    >
+      <div className="flex items-center justify-between mb-5">
+        <h2 className="text-sm font-bold uppercase tracking-wider text-navy flex items-center gap-2">
+          <ClipboardCheck size={16} className="text-gold" /> Ad Requests
+        </h2>
+        <div className="flex gap-2 flex-wrap">
+          {(["all", "pending", "approved", "rejected"] as const).map((f) => (
+            <button
+              type="button"
+              key={f}
+              data-ocid="adrequests.tab"
+              onClick={() => setFilter(f)}
+              className={`text-xs px-3 py-1.5 rounded-full font-semibold uppercase tracking-wider transition-colors ${
+                filter === f
+                  ? "bg-navy text-white"
+                  : "bg-slate-100 text-navy hover:bg-slate-200"
+              }`}
+            >
+              {f === "all"
+                ? `All (${allRequests.length})`
+                : f === "pending"
+                  ? `Pending (${pending.length})`
+                  : f === "approved"
+                    ? `Approved (${approved.length})`
+                    : `Rejected (${rejected.length})`}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div
+          className="flex justify-center py-10"
+          data-ocid="adrequests.loading_state"
+        >
+          <Loader2 className="h-6 w-6 animate-spin text-navy" />
+        </div>
+      ) : filtered.length === 0 ? (
+        <p
+          className="text-muted-foreground text-sm text-center py-10"
+          data-ocid="adrequests.empty_state"
+        >
+          No ad requests in this category.
+        </p>
+      ) : (
+        <div className="overflow-x-auto" data-ocid="adrequests.table">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-xs font-bold uppercase tracking-wider">
+                  Company
+                </TableHead>
+                <TableHead className="text-xs font-bold uppercase tracking-wider">
+                  Ad Title
+                </TableHead>
+                <TableHead className="text-xs font-bold uppercase tracking-wider">
+                  Payment
+                </TableHead>
+                <TableHead className="text-xs font-bold uppercase tracking-wider">
+                  Reference
+                </TableHead>
+                <TableHead className="text-xs font-bold uppercase tracking-wider">
+                  Amount
+                </TableHead>
+                <TableHead className="text-xs font-bold uppercase tracking-wider">
+                  Status
+                </TableHead>
+                <TableHead className="text-xs font-bold uppercase tracking-wider">
+                  Submitted
+                </TableHead>
+                <TableHead className="text-xs font-bold uppercase tracking-wider">
+                  Actions
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((req: any, i: number) => (
+                <TableRow
+                  key={String(req.id)}
+                  data-ocid={`adrequests.row.${i + 1}`}
+                >
+                  <TableCell className="font-medium text-sm">
+                    {req.companyName}
+                  </TableCell>
+                  <TableCell className="text-sm">{req.adTitle}</TableCell>
+                  <TableCell className="text-sm capitalize">
+                    {req.paymentMethod}
+                  </TableCell>
+                  <TableCell className="text-sm font-mono text-xs">
+                    {req.paymentReference}
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    ৳{String(req.amountPaid)}
+                  </TableCell>
+                  <TableCell>{getStatusBadge(req.status)}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {new Date(
+                      Number(req.submittedAt / 1_000_000n),
+                    ).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell>
+                    {"pending" in req.status && (
+                      <div className="flex flex-col gap-2 min-w-[200px]">
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            data-ocid={`adrequests.confirm_button.${i + 1}`}
+                            onClick={() => handleApprove(req.id)}
+                            disabled={approve.isPending}
+                            className="bg-green-600 hover:bg-green-700 text-white text-xs h-7 px-3"
+                          >
+                            {approve.isPending ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              "Approve"
+                            )}
+                          </Button>
+                          <Button
+                            size="sm"
+                            data-ocid={`adrequests.delete_button.${i + 1}`}
+                            onClick={() => {
+                              setRejectingId(req.id);
+                              setRejectReason("");
+                            }}
+                            variant="destructive"
+                            className="text-xs h-7 px-3"
+                          >
+                            Reject
+                          </Button>
+                        </div>
+                        {rejectingId === req.id && (
+                          <div
+                            className="flex gap-2 items-center"
+                            data-ocid={`adrequests.panel.${i + 1}`}
+                          >
+                            <Input
+                              className="h-7 text-xs"
+                              placeholder="Reason..."
+                              data-ocid="adrequests.input"
+                              value={rejectReason}
+                              onChange={(e) => setRejectReason(e.target.value)}
+                              onKeyDown={(e) =>
+                                e.key === "Enter" && handleReject(req.id)
+                              }
+                            />
+                            <Button
+                              size="sm"
+                              data-ocid="adrequests.cancel_button"
+                              variant="ghost"
+                              className="h-7 w-7 p-0"
+                              onClick={() => setRejectingId(null)}
+                            >
+                              <X size={14} />
+                            </Button>
+                            <Button
+                              size="sm"
+                              data-ocid="adrequests.confirm_button"
+                              variant="destructive"
+                              className="h-7 text-xs px-2"
+                              onClick={() => handleReject(req.id)}
+                            >
+                              Send
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {"rejected" in req.status &&
+                      req.rejectionReason.length > 0 && (
+                        <span className="text-xs text-red-600">
+                          {req.rejectionReason[0]}
+                        </span>
+                      )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
   );
 }

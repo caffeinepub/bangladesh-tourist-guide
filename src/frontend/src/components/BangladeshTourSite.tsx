@@ -35,6 +35,7 @@ import { SiFacebook, SiInstagram, SiWhatsapp, SiX } from "react-icons/si";
 import { toast } from "sonner";
 import {
   TourType,
+  useGetActiveApprovedAds,
   useGetAllAdSlots,
   useGetAllBlogPosts,
   useRecordAdClick,
@@ -197,6 +198,7 @@ export default function BangladeshTourSite() {
   const submitInquiry = useSubmitInquiry();
   const { data: blogPosts = [] } = useGetAllBlogPosts();
   const { data: adSlots = [] } = useGetAllAdSlots();
+  const { data: approvedAds = [] } = useGetActiveApprovedAds();
   const recordAdClick = useRecordAdClick();
   const activeAds = adSlots.filter((ad: any) => ad.isActive);
 
@@ -787,7 +789,7 @@ export default function BangladeshTourSite() {
       </section>
 
       {/* OUR SPONSORS */}
-      {activeAds.length > 0 && (
+      {(activeAds.length > 0 || approvedAds.length > 0) && (
         <section className="py-16 bg-slate-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6">
             <div className="text-center mb-10">
@@ -800,7 +802,24 @@ export default function BangladeshTourSite() {
               <div className="w-16 h-1 bg-gold mx-auto rounded-full mt-3" />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {activeAds.map((ad: any, idx: number) => (
+              {[
+                ...activeAds.map((ad: any) => ({
+                  id: ad.id,
+                  imageUrl: ad.imageUrl,
+                  title: ad.title,
+                  advertiserName: ad.advertiserName,
+                  linkUrl: ad.linkUrl,
+                  isAdSlot: true,
+                })),
+                ...approvedAds.map((ad: any) => ({
+                  id: `req-${String(ad.id)}`,
+                  imageUrl: ad.imageUrl,
+                  title: ad.adTitle,
+                  advertiserName: ad.companyName,
+                  linkUrl: ad.websiteLink,
+                  isAdSlot: false,
+                })),
+              ].map((ad: any, idx: number) => (
                 <motion.div
                   key={String(ad.id)}
                   initial={{ opacity: 0, y: 24 }}
@@ -833,7 +852,7 @@ export default function BangladeshTourSite() {
                       className="bg-gold hover:bg-gold/90 text-white w-full mt-auto"
                       data-ocid={`sponsors.button.${idx + 1}`}
                       onClick={() => {
-                        recordAdClick.mutate(ad.id);
+                        if (ad.isAdSlot) recordAdClick.mutate(ad.id);
                         window.open(
                           ad.linkUrl,
                           "_blank",
@@ -1152,6 +1171,14 @@ export default function BangladeshTourSite() {
                     </a>
                   </li>
                 ))}
+                <li>
+                  <a
+                    href="/advertise"
+                    className="text-white/60 hover:text-gold text-sm transition-colors"
+                  >
+                    Advertise With Us
+                  </a>
+                </li>
               </ul>
             </div>
 

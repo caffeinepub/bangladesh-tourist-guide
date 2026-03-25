@@ -33,6 +33,7 @@ actor {
     timestamp : Time.Time;
   };
 
+  // Kept for backward compatibility with previous stable state
   type StaticPackage = {
     name : Text;
     description : Text;
@@ -79,6 +80,40 @@ actor {
     createdAt : Time.Time;
   };
 
+  type AdStatus = {
+    #pending;
+    #approved;
+    #rejected;
+    #expired;
+  };
+
+  type AdvertiserAccount = {
+    id : Nat;
+    email : Text;
+    passwordHash : Text;
+    companyName : Text;
+    contactPhone : Text;
+    registeredAt : Time.Time;
+    isActive : Bool;
+  };
+
+  type AdRequest = {
+    id : Nat;
+    advertiserId : Nat;
+    adTitle : Text;
+    companyName : Text;
+    imageUrl : Text;
+    websiteLink : Text;
+    paymentMethod : Text;
+    paymentReference : Text;
+    amountPaid : Nat;
+    status : AdStatus;
+    submittedAt : Time.Time;
+    approvedAt : ?Time.Time;
+    expiresAt : ?Time.Time;
+    rejectionReason : ?Text;
+  };
+
   type SiteStats = {
     totalInquiries : Nat;
     totalPosts : Nat;
@@ -105,13 +140,20 @@ actor {
   var nextPostId = 1;
   var nextPackageId = 6;
   var nextAdId = 1;
+  var nextAdvertiserId = 1;
+  var nextAdRequestId = 1;
+
   let inquiries = Map.empty<Nat, Inquiry>();
   let guideProfiles = List.empty<GuideProfile>();
   let userProfiles = Map.empty<Principal, UserProfile>();
   let blogPosts = Map.empty<Nat, BlogPost>();
   let adSlots = Map.empty<Nat, AdSlot>();
+  let advertiserAccounts = Map.empty<Nat, AdvertiserAccount>();
+  let adRequests = Map.empty<Nat, AdRequest>();
 
+  // Kept for backward compatibility with previous stable state
   let packages : [StaticPackage] = [];
+
   let packagesMap = Map.empty<Nat, Package>();
 
   packagesMap.add(1, { id = 1; name = "Cox's Bazar Beach Paradise"; description = "Experience the world's longest natural sea beach with pristine golden sands and turquoise waves."; duration = "5 days"; price = 299; destinations = ["Cox's Bazar", "Inani Beach", "Himchari", "Saint Martin's Island"] });
@@ -177,7 +219,7 @@ actor {
     blogPosts.remove(id);
   };
 
-  // Ad Slot functions
+  // Ad Slot functions (admin managed)
   public shared func createAdSlot(title : Text, imageUrl : Text, linkUrl : Text, advertiserName : Text, pricePaid : Nat, isActive : Bool) : async Nat {
     let id = nextAdId;
     adSlots.add(id, { id; title; imageUrl; linkUrl; advertiserName; pricePaid; isActive; clickCount = 0; createdAt = Time.now() });
@@ -211,9 +253,151 @@ actor {
     };
   };
 
+  // Advertiser Account functions
+  public shared func registerAdvertiser(email : Text, password : Text, companyName : Text, contactPhone : Text) : async { #ok : Nat; #err : Text } {
+    for (acc in advertiserAccounts.values()) {
+      if (acc.email == email) {
+        return #err("Email already registered");
+      };
+    };
+    let id = nextAdvertiserId;
+    advertiserAccounts.add(id, {
+      id;
+      email;
+      passwordHash = password;
+      companyName;
+      contactPhone;
+      registeredAt = Time.now();
+      isActive = true;
+    });
+    nextAdvertiserId += 1;
+    #ok(id);
+  };
+
+  public query func loginAdvertiser(email : Text, password : Text) : async ?AdvertiserAccount {
+    for (acc in advertiserAccounts.values()) {
+      if (acc.email == email and acc.passwordHash == password and acc.isActive) {
+        return ?acc;
+      };
+    };
+    null;
+  };
+
+  public shared func submitAdRequest(advertiserId : Nat, adTitle : Text, companyName : Text, imageUrl : Text, websiteLink : Text, paymentMethod : Text, paymentReference : Text, amountPaid : Nat) : async Nat {
+    let id = nextAdRequestId;
+    adRequests.add(id, {
+      id;
+      advertiserId;
+      adTitle;
+      companyName;
+      imageUrl;
+      websiteLink;
+      paymentMethod;
+      paymentReference;
+      amountPaid;
+      status = #pending;
+      submittedAt = Time.now();
+      approvedAt = null;
+      expiresAt = null;
+      rejectionReason = null;
+    });
+    nextAdRequestId += 1;
+    id;
+  };
+
+  public query func getMyAdRequests(advertiserId : Nat) : async [AdRequest] {
+    let result = List.empty<AdRequest>();
+    for (req in adRequests.values()) {
+      if (req.advertiserId == advertiserId) {
+        result.add(req);
+      };
+    };
+    result.toArray();
+  };
+
+  public query func getAllAdRequests() : async [AdRequest] {
+    adRequests.values().toArray();
+  };
+
+  public shared func approveAdRequest(id : Nat) : async () {
+    switch (adRequests.get(id)) {
+      case (?req) {
+        let now = Time.now();
+        let oneYear = 365 * 24 * 60 * 60 * 1_000_000_000;
+        adRequests.add(id, {
+          id = req.id;
+          advertiserId = req.advertiserId;
+          adTitle = req.adTitle;
+          companyName = req.companyName;
+          imageUrl = req.imageUrl;
+          websiteLink = req.websiteLink;
+          paymentMethod = req.paymentMethod;
+          paymentReference = req.paymentReference;
+          amountPaid = req.amountPaid;
+          status = #approved;
+          submittedAt = req.submittedAt;
+          approvedAt = ?now;
+          expiresAt = ?(now + oneYear);
+          rejectionReason = null;
+        });
+      };
+      case null {};
+    };
+  };
+
+  public shared func rejectAdRequest(id : Nat, reason : Text) : async () {
+    switch (adRequests.get(id)) {
+      case (?req) {
+        adRequests.add(id, {
+          id = req.id;
+          advertiserId = req.advertiserId;
+          adTitle = req.adTitle;
+          companyName = req.companyName;
+          imageUrl = req.imageUrl;
+          websiteLink = req.websiteLink;
+          paymentMethod = req.paymentMethod;
+          paymentReference = req.paymentReference;
+          amountPaid = req.amountPaid;
+          status = #rejected;
+          submittedAt = req.submittedAt;
+          approvedAt = req.approvedAt;
+          expiresAt = req.expiresAt;
+          rejectionReason = ?reason;
+        });
+      };
+      case null {};
+    };
+  };
+
+  public query func getActiveApprovedAds() : async [AdRequest] {
+    let now = Time.now();
+    let result = List.empty<AdRequest>();
+    for (req in adRequests.values()) {
+      switch (req.status, req.expiresAt) {
+        case (#approved, ?exp) {
+          if (exp > now) { result.add(req); };
+        };
+        case _ {};
+      };
+    };
+    result.toArray();
+  };
+
   public query func getSiteStats() : async SiteStats {
     var activeAds = 0;
     var totalAdRevenue = 0;
+    let now = Time.now();
+    for (req in adRequests.values()) {
+      switch (req.status, req.expiresAt) {
+        case (#approved, ?exp) {
+          if (exp > now) {
+            activeAds += 1;
+            totalAdRevenue += req.amountPaid;
+          };
+        };
+        case _ {};
+      };
+    };
     for (ad in adSlots.values()) {
       if (ad.isActive) { activeAds += 1; totalAdRevenue += ad.pricePaid; };
     };
@@ -222,7 +406,7 @@ actor {
       totalPosts = blogPosts.size();
       totalPackages = packagesMap.size();
       totalGuides = guideProfiles.size();
-      totalAds = adSlots.size();
+      totalAds = adSlots.size() + adRequests.size();
       activeAds;
       totalAdRevenue;
     };

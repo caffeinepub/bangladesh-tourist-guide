@@ -300,3 +300,52 @@ export function useGetSiteStats() {
 }
 
 export { TourType };
+
+// Ad Request hooks (self-service advertiser system)
+export function useGetAllAdRequests() {
+  const { actor, isFetching } = useActor();
+  return useQuery({
+    queryKey: ["adRequests"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return (actor as any).getAllAdRequests();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useApproveAdRequest() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: bigint) => {
+      if (!actor) throw new Error("Not connected");
+      return (actor as any).approveAdRequest(id);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["adRequests"] }),
+  });
+}
+
+export function useRejectAdRequest() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, reason }: { id: bigint; reason: string }) => {
+      if (!actor) throw new Error("Not connected");
+      return (actor as any).rejectAdRequest(id, reason);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["adRequests"] }),
+  });
+}
+
+export function useGetActiveApprovedAds() {
+  const { actor, isFetching } = useActor();
+  return useQuery({
+    queryKey: ["activeApprovedAds"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return (actor as any).getActiveApprovedAds();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}

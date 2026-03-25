@@ -7,6 +7,7 @@ import {
   createRouter,
 } from "@tanstack/react-router";
 import AdminPanel from "./components/AdminPanel";
+import AdvertisePage from "./components/AdvertisePage";
 import BangladeshTourSite from "./components/BangladeshTourSite";
 
 const queryClient = new QueryClient();
@@ -25,7 +26,17 @@ const adminRoute = createRoute({
   component: AdminPanel,
 });
 
-const routeTree = rootRoute.addChildren([indexRoute, adminRoute]);
+const advertiseRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/advertise",
+  component: AdvertisePage,
+});
+
+const routeTree = rootRoute.addChildren([
+  indexRoute,
+  adminRoute,
+  advertiseRoute,
+]);
 
 const router = createRouter({ routeTree });
 
